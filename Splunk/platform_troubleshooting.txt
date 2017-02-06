@@ -1,0 +1,16 @@
+This search is to help find source types with timestamping, truncating and line breaking issues.
+
+index=_internal sourcetype=splunkd component=DateParserVerbose OR component=LineBreakingProcessor OR component=Aggregator* | rex field=_raw "\|host::[^|]+\|(?<data_sourcetype>[^\|]+)\|" |eval Process_Issue=case((component=="DateParserVerbose"), "Date",(component=="LineBreakingProcessor"), "Truncate",like(component,"Aggregator%"), "Line Breaking") | stats values(Process_Issue) by data_sourcetype
+
+
+
+This search will show you all dashboards that have more than 20 inline searches. Again, Splunk recommends having 20 or less inline searches per dashboard. Please keep in mind this search doesn’t account for reports referenced within the dashboard. 
+
+| rest splunk_server_group=dmc_group_search_head /servicesNS/-/-/data/ui/views | eval uniquedash='eai:acl.app'."_".title | dedup uniquedash | table title, uniquedash eai:data, eai:acl.sharing | rename eai:data AS data| rex field=data mode=sed "s/[\r\n]//g" | rex max_match=0 field=data "<(?:name=\"search\"|searchString|searchPostProcess|searchTemplate|query)>(?<inline_searches>(.*?))<\/(?:name=\"search\"|searchString|searchPostProcess|searchTemplate|query)>" | eval inline_search_count=mvcount(inline_searches) | rename title AS "Dashboard Name", unqiuedash AS "App Name" | where inline_search_count > 20
+
+
+
+This is to see what data models are not completing. Also many of these searches will only work on the DMC if they are using the rest call. 
+
+| rest /services/admin/summarization by_tstats=t splunk_server=* splunk_server_group=dmc_group_search_head count=0 | search summary.complete<1 | fields id, eai:acl.app, summary.id, splunk_server, summary.is_inprogress, summary.complete
+
