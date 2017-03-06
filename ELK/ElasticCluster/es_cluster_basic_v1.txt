@@ -33,8 +33,7 @@ Elastic search:
 			§ Uncomment the below line and change the value to 3
 				□ discovery.zen.minimum_master_nodes: 3
 			§ Add all the ES nodes IP list
-				□ discovery.zen.ping.unicast.hosts: [10.205.233.191, 10.205.236.248, 10.205.235.211, 10.205.239.75]
-				
+				□ discovery.zen.ping.unicast.hosts: [masternode1, masternode2, masternode3]			
 		○ echo "bootstrap.seccomp: false" >> $ES_HOME/config/elasticsearch.yml
 
 		○ ONLY for DEDICATED FUNCTIONALITY NODES
