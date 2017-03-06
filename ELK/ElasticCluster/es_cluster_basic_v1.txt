@@ -1,0 +1,103 @@
+Elastic search:
+	• Copy the tar elasticsearch-5.2.1.tar.gz file to /tmp
+	• yum install java
+	• Install ES
+	cd /opt/elasticsearch/
+	tar -zxvf /tmp/elasticsearch-5.2.1.tar.gz
+	cd elasticsearch-5.2.1
+	echo "export ES_HOME=`pwd`" >> ~/.bashrc
+	. ~/.bashrc
+	echo $ES_HOME
+	ls -l $ES_HOME/bin/elasticsearch
+	mkdir -p  $ES_HOME/../es_data_store
+	• Create elasticsearch user and group
+		groupadd elasticsearch 
+		useradd -g elasticsearch  elasticsearch 
+	• Change the ownership to elasticsearch user
+		chown -R elasticsearch:elasticsearch $ES_HOME
+		chown -R elasticsearch:elasticsearch $ES_HOME/../es_data_store
+	• Make the following changes to $ES_HOME/config/elasticsearch.yml
+		○ Change the data path
+			§ OLD:            #path.data: /path/to/data
+			§ New:           path.data: /opt/elasticsearch/es_data_store    or $ES_HOME/../es_data_store
+			
+			§ OLD:         #http.port: 9200
+			§ New:        http.port: 8089
+			
+			§ OLD :    #network.host: 192.168.0.1
+			§ NEW :   network.host: [<<IP address of system>>,127.0.0.1]
+			
+		○ Uncomment the below line
+			§ bootstrap.memory_lock: true
+		○ For Cluster only:
+			§ Uncomment the below line and change the value to 3
+				□ discovery.zen.minimum_master_nodes: 3
+			§ Add all the ES nodes IP list
+				□ discovery.zen.ping.unicast.hosts: [10.205.233.191, 10.205.236.248, 10.205.235.211, 10.205.239.75]
+				
+		○ echo "bootstrap.seccomp: false" >> $ES_HOME/config/elasticsearch.yml
+
+		○ ONLY for DEDICATED FUNCTIONALITY NODES
+				□ Add the following lines only for dedicated coordinate Node cluster members (generally runs on Kibana server)
+					node.master: false
+					node.data: false
+					node.ingest: false
+				□ Add the following lines only for the ES node to be dedicated Master Nodes: To create a standalone master-eligible node, set:
+					node.master: true 
+					node.data: false 
+					node.ingest: false 
+				□ Add the following line for Dedicated Data nodes.
+				node.master: false 
+				node.data: true 
+				node.ingest: false 
+		
+		○ 
+	• increase the limits of virtual memory
+		sysctl -w vm.max_map_count=262144
+		OR
+		echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+	• Add the following lines to /etc/security/limits.conf
+		elasticsearch ulimit -n 65536
+		elasticsearch soft   memlock unlimited
+		elasticsearch hard   memlock unlimited
+		elasticsearch soft     nproc   16384
+		elasticsearch hard     nproc   32768
+		elasticsearch soft     nofile  32768
+		elasticsearch hard     nofile  65536
+		
+	sysctl --system
+	
+	• Login as elasticsearch user to start the instance
+	su elasticsearch
+	
+	• For single instance
+		 $ES_HOME/bin/elasticsearch -d  -p  es_pid_file
+	• For cluster member (change the Number at the end for node name) - Clustname and node name also can be configurable in the $ES_HOME/config/elasticsearch.yml
+		○ On Node1a:
+			$ES_HOME/bin/elasticsearch -d   -Ecluster.name=emmo_techops_dev_es_cluster_1   -Enode.name=emmo_techops_dev_es_node_1a
+		○ On Node2a:
+			$ES_HOME/bin/elasticsearch -d   -Ecluster.name=emmo_techops_dev_es_cluster_1   -Enode.name=emmo_techops_dev_es_node_2a
+		○ On Node3a:
+			$ES_HOME/bin/elasticsearch -d   -Ecluster.name=emmo_techops_dev_es_cluster_1   -Enode.name=emmo_techops_dev_es_node_3a
+		○ On CLIENT NODE which runs on Kibana:
+			$ES_HOME/bin/elasticsearch -d   -Ecluster.name=emmo_techops_dev_es_cluster_1   -Enode.name=emmo_techops_dev_es_coordinator_1a
+		
+	• Stop Elastic search
+		○ kill `cat es_pid_file`
+		
+		
+	
+
+Log Stash:
+	• yum install java
+	• Install the logstash with .tar.gz
+	• cd logstash-5.2.1/
+	• echo "export LS_HOME=`pwd`" >> ~/.bashrc
+	• . ~/.bashrc
+	• echo $LS_HOME
+	• mkdir $LS_HOME/../data_logstash
+	• mkdir $LS_HOME/../read_configurations
+	
+	$LS_HOME/bin/logstash -f /opt/logstash/read_configurations/send_var_log_files.conf  --config.reload.automatic
+	
+	
