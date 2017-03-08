@@ -35,6 +35,11 @@ Elastic search:
 			§ Add all the ES nodes IP list
 				□ discovery.zen.ping.unicast.hosts: [masternode1, masternode2, masternode3]			
 		○ echo "bootstrap.seccomp: false" >> $ES_HOME/config/elasticsearch.yml
+		
+	##JVM settings based on the system RAM:  (NOT DONE on the existing Dev ES instances)
+		○ Set the JVM options at $ES_HOME/config/jvm.options
+		   -Xms2g  ==> -Xms8g
+                   -Xmx2g ==> -Xmx8g
 
 		○ ONLY for DEDICATED FUNCTIONALITY NODES
 				□ Add the following lines only for dedicated coordinate Node cluster members (generally runs on Kibana server)
