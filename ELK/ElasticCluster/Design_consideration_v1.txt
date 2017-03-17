@@ -53,3 +53,11 @@ o	Shards Recovery settings & Shards allocation settings  ( cluster.routing.alloc
 •	Are there any setting changes for Indexing speed from the default value?
 
 •	Are there settings changes to index.store.preload from default settings and evaluated the performance?  We are planning go with default setting which is mmapfs for 64bit linux systems presently. Is the value setting to niofs validated in the project? We are planning to validate later in NonProd and see if it gets any benefits.
+
+
+
+
+
+
+
+
