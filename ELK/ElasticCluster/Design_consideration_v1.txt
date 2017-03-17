@@ -1,0 +1,55 @@
+This are investigation for optimization & scaling of ELK after reading various blogs, documents..
+
+ELK Archtiecture:
+•	3 Dedicated Elastic Master Nodes
+•	3 dedicated Elastic Co-ordinator/Client Nodes (Kibana or user queries)
+•	30 Elastic Data Nodes for data storage
+
+AWS Instance selected for Elastic nodes:
+Since the elastic nodes have different resource requirements, we are planning go with the following AWS ec2 instances
+•	Data Nodes are high IO Intensive and needs lots of memory too.. Hence we are planning to go with r4.16xLarge instances (initially we were planning to use i3.16xlarge instances because of the SSD support, but as encryption is not supported on SSD, we are planning to go with r4 instance which are next best IO & memory supporting instances)
+•	Co-Ordinator nodes are high Memory intensive, hence we are going again with r4.16xlarge instances
+•	For Master node – we are going with c4 instances or m4 instances.
+
+JVM Memory settings:
+•	The HEAP allocation for JVM plays very important role in ELK platform and should never cross 32GB RAM and should be less than 50% of total RAM, hence we are planning to configure JVM heap allocation to Min & Max value to 31GB. The total RAM of the system will be 64GB - 256GB RAM in our Elastic servers, so remaining RAM for lucene will make the searches faster.
+
+Platform optimization setttings we have identified and planning to start the project with:
+•	This allows the JVM to lock its memory and prevent it from being swapped by the OS.
+bootstrap.memory_lock: true
+•	Enable the below configuration to ensure Primary & Replication shards are not located on the same Node to achieve better distribution
+cluster.routing.allocation.same_shard.host: true
+•	Allocating Enough resources to elasticsearch user only, so that other users processes will not consume the resources
+                        elasticsearch ulimit -n 65536
+                        elasticsearch soft   memlock unlimited
+                        elasticsearch hard   memlock unlimited
+                        elasticsearch soft     nproc   16384
+                        elasticsearch hard     nproc   32768
+                        elasticsearch soft     nofile  32768
+elasticsearch hard     nofile  65536
+•	increase the limits of virtual memory
+sysctl -w vm.max_map_count=262144
+•	Disable deletion of _all or using wilchar in the DELETE command
+action.destructive_requires_name: true
+
+
+
+To be explored & experiemented?
+•	Are there any other platform optimization settings changed from default values such are 
+o	refresh interval settings (like index.refresh_interval, default is 1s & any other)
+o	Any timeout parameter settings changes from default value? 
+o	Shards Recovery settings & Shards allocation settings  ( cluster.routing.allocation.<parameters)
+
+•	Are there merging of older shards into single shards validated and any best practices followed & tested? https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-forcemerge.html 
+
+•	Any data retiring methods have been practiced in the project for performance improvement? https://www.elastic.co/guide/en/elasticsearch/guide/current/retiring-data.html  As the older & small size shards which are less accessed shall be merged which has benefits as per the documentation.
+
+•	Is changing the index.auto_expand_replicas parameter validated in the project? Any observations, please share
+
+•	Is the index.codec value setting with DEFALATE is experimented and any improvements or consequences observed? 
+
+•	Any there any customization for Index settings for highly accessed index name like setting index.max_refresh_listeners  (Maximum number of refresh listeners available on each shard of the index.)
+
+•	Are there any setting changes for Indexing speed from the default value?
+
+•	Are there settings changes to index.store.preload from default settings and evaluated the performance?  We are planning go with default setting which is mmapfs for 64bit linux systems presently. Is the value setting to niofs validated in the project? We are planning to validate later in NonProd and see if it gets any benefits.
