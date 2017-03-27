@@ -1,0 +1,83 @@
+input {
+  beats {
+     port => "9997"
+  }
+}
+
+
+filter {
+   if [fields][index] == "cap1gw_api" {
+       mutate {
+          replace => {
+             "[@metadata][index]" => "cap1gw_uri_all"
+          }
+       }
+       if [fields][source_type] == "root_health" {
+         mutate {
+            replace => {
+               "[@metadata][type]" =>  "root_health"
+               type => "cap1gw_root_health"
+            }
+          }
+         grok {
+           match => { "message" => "%{NUMBER:epoch},%{WORD:ROOT},%{NUMBER:Success},%{NUMBER:ClientErrors},%{NUMBER:ServerErrors}" }
+           add_field => [ "received_at", "%{@timestamp}" ]
+         }
+       }
+       else if [fields][source_type] == "branch1_health" {
+          mutate {
+            replace => {
+               "[@metadata][type]" =>  "branch1_health"
+               type => "cap1gw_branch1_health"
+            }
+          }
+         grok {
+           match => { "message" => "%{NUMBER:epoch},%{WORD:ROOT}:%{WORD:BRANCH1},%{NUMBER:Success},%{NUMBER:ClientErrors},%{NUMBER:ServerErrors}" }
+           add_field => [ "received_at", "%{@timestamp}" ]
+         }
+       }
+       else if [fields][source_type] == "branch2_health" {
+          mutate {
+            replace => {
+               "[@metadata][type]" =>  "branch2_health"
+               type => "cap1gw_branch2_health"
+            }
+          }
+         grok {
+           match => { "message" => "%{NUMBER:epoch},%{WORD:ROOT}:%{WORD:BRANCH1}:%{WORD:BRANCH2},%{NUMBER:Success},%{NUMBER:ClientErrors},%{NUMBER:ServerErrors}" }
+           add_field => [ "received_at", "%{@timestamp}" ]
+         }
+       }
+       else if [fields][source_type] == "branch3_health" {
+          mutate {
+            replace => {
+               "[@metadata][type]" =>  "branch3_health"
+               type => "cap1gw_branch3_health"
+            }
+          }
+         grok {
+           match => { "message" => "%{NUMBER:epoch},%{WORD:ROOT}:%{WORD:BRANCH1}:%{WORD:BRANCH2}:%{WORD:BRANCH3},%{NUMBER:Success},%{NUMBER:ClientErrors},%{NUMBER:ServerErrors}" }
+           add_field => [ "received_at", "%{@timestamp}" ]
+         }
+       } else {
+         mutate {
+           replace => {
+             "[@metadata][index]" => "testing"
+             "[@metadata][type]" =>  "test_delete"
+           }
+         }
+       }
+
+       date {
+          match => ["epoch", "UNIX_MS"]
+       }
+   } else {
+       mutate {
+          replace => {
+             "[@metadata][index]" => "testing"
+             "[@metadata][type]" =>  "test_delete"
+          }
+      }
+   }
+}
+
