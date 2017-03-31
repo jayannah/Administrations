@@ -1,0 +1,25 @@
+###/opt/elasticsearch# more /etc/elasticsearch/elasticsearch.yml
+cluster.name: prod1_escluster1
+node.name: 10.x.x.x
+node.master: false
+node.data: true
+node.ingest: true
+bootstrap.memory_lock: true
+network.host: 127.0.0.1,10.x.x.x
+http.port: 8089
+bootstrap.seccomp: false
+discovery.zen.ping.unicast.hosts: [ master1,master2,master3,master4,master5 ]
+discovery.zen.minimum_master_nodes: 3
+discovery.zen.master_election.ignore_non_master_pings: true
+discovery.zen.fd.ping_timeout: 120s
+action.destructive_requires_name: true
+cluster.routing.allocation.same_shard.host: true
+indices.fielddata.cache.size: 20%
+indices.breaker.fielddata.limit: 30%
+indices.breaker.request.limit: 30%
+cluster.routing.allocation.cluster_concurrent_rebalance: 4
+thread_pool.bulk.queue_size: 5000
+discovery.zen.ping_timeout: 6s
+discovery.zen.commit_timeout: 60s
+path.data: /opt/elasticsearch
+path.repo: /opt/elasticsearch
