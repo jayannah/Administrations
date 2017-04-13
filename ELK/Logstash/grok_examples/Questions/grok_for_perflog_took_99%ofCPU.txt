@@ -1,0 +1,59 @@
+
+System used: 8 CPU cores & 32GB RAM
+
+For below exactions in logstash it took 99% of CPU and 18GB RAM.. 
+
+
+Perf.log:
+
+Sample logs:
+[http-nio-11402-exec-70] 10 Apr 2017 12:49:50,224 INFO  PerfLog         [{}]: Service:tools-referenceids-cloud-app|Operation:NA|HttpMethod:POST|Version:3|Client:RTM|ResponseTime:52|HttpStatus:404|Status:200001|Severity:CLIENT-ERROR|StatusDescription:INFO 1120 NO_RECORDS_MATCH_SELECTION_CRITERIA|MessageID:10.207.164.253-64cdb91c-4cd9-45c8-a1f2-b073ae04c89d|CorrelationID:NA|RelativeURI:/tools/reference-ids
+
+12:37:29.964 PM                
+[http-nio-11402-exec-8] 10 Apr 2017 12:37:29,964 INFO  PerfLog         [{}]: Service:entitlements|Operation:NA|HttpMethod:GET|Version:1|Client:MOBILE|ResponseTime:6|HttpStatus:200|Status:0|Severity:INFO|StatusDescription:SUCCESS|MessageID:172.17.0.3-5311adb1-78a6-4a75-9d0c-64fcb869f818|CorrelationID:NA|RelativeURI:/status|apiName:|resourceName:|policyDecisionPoint:|region:east
+
+10 Apr 2017 12:38:22,750 INFO  PerfLog         [{}]: Service:identity-user-token-utilities-app|Operation:NA|HttpMethod:GET|Version:3|Client:FRSSO|ResponseTime:29|HttpStatus:200|Status:0|Severity:INFO|StatusDescription:SUCCESS|MessageID:10.207.160.48-40e7c24e-ccd0-426d-bbff-fdfbbb24e2a6|CorrelationID:NA|RelativeURI:/private/consumeridentityservices/identity/profiles/token
+
+12 Apr 2017 10:13:08,990 |CONTAINER:863005b3e69f|SERVICETAG:PROD| INFO  PerfLog         [{}]: Service:int-dms-content-assembly-cloud-app|Operation:NA|HttpMethod:POST|Version:1|Client:enterpriseapi-6fa16292432242c8bb6eeabc22f60687|ResponseTime:3|HttpStatus:200|Status:0|Severity:INFO|StatusDescription:SUCCESS|MessageID:10.202.24.246-02e7b142-cae0-4bb1-a55c-a50460e0564d|CorrelationID:NA|RelativeURI:/integration/dms/content-assembly
+
+Final Version:
+(?<EVENT_TIME>(?:[\w\s\d\:]+\,\d{3}))\s*.+?\s(?<LEVEL>(?:[\w]+))\s*.+?\:\s+Service\:(?<Service>(?:[^\|]+))\|Operation\:(?<Operation>(?:[^\|]+))\|HttpMethod\:(?<HttpMethod>(?:[^\|]+))\|Version\:(?<Version>(?:[^\|]+))\|Client\:(?<Client>(?:[^\|]+))\|ResponseTime\:(?<ResponseTime>(?:[^\|]+))\|HttpStatus\:(?<HttpStatus>(?:[^\|]+))\|Status\:(?<Status>(?:[^\|]+))\|Severity\:(?<Severity>(?:[^\|]+))\|StatusDescription\:(?<StatusDescription>(?:[^\|]+))\|MessageID\:(?<MessageID>(?:[^\|]+))\|CorrelationID\:(?<CorrelationID>(?:[^\|]+))\|RelativeURI\:(?<RelativeURI>(?:[^\|]+))\|?(apiName)?\:?(?<apiName>(?:[^\|]*))\|?(resourceName)?\:?(?<resourceName>(?:[^\|]*))\|?(policyDecisionPoint)?\:?(?<policyDecisionPoint>(?:[^\|]*))\|?(region)?\:?(?<region>(?:[^\|]*))
+
+
+
+input {
+  beats {
+     port => "9997"
+  }
+}
+
+filter {
+   if [fields][index] == "eapi_cloud" {
+       mutate {
+          replace => {
+             "[@metadata][index]" => "eapi_cloud"
+             type => "perf_log"
+          }
+       }
+      grok {
+         match => { "message" => "(?<EVENT_TIME>(?:[\w\s\d\:]+\,\d{3}))\s*.+?\s(?<LEVEL>(?:[\w]+))\s*.+?\:\s+Service\:(?<Service>(?:[^\|]+))\|Operation\:(?<Operation>(?:[^\|]+))\|HttpMethod\:(?<HttpMethod>(?:[^\|]+))\|Version\:(?<Version>(?:[^\|]+))\|Client\:(?<Client>(?:[^\|]+))\|ResponseTime\:(?<ResponseTime>(?:[^\|]+))\|HttpStatus\:(?<HttpStatus>(?:[^\|]+))\|Status\:(?<Status>(?:[^\|]+))\|Severity\:(?<Severity>(?:[^\|]+))\|StatusDescription\:(?<StatusDescription>(?:[^\|]+))\|MessageID\:(?<MessageID>(?:[^\|]+))\|CorrelationID\:(?<CorrelationID>(?:[^\|]+))\|RelativeURI\:(?<RelativeURI>(?:[^\|]+))\|?(apiName)?\:?(?<apiName>(?:[^\|]*))\|?(resourceName)?\:?(?<resourceName>(?:[^\|]*))\|?(policyDecisionPoint)?\:?(?<policyDecisionPoint>(?:[^\|]*))\|?(region)?\:?(?<region>(?:[^\|]*))" }
+      }
+   } else {
+       mutate {
+          replace => {
+             "[@metadata][index]" => "others"
+             "[@metadata][type]" =>  "test_delete"
+          }
+      }
+      grok {
+         add_field => [ "received_at", "%{@timestamp}" ]
+      }
+   }
+}
+
+output {
+  elasticsearch {
+     hosts => "http://elasticdn:80"
+     index => "%{[@metadata][index]}-%{+YYYY.MM.dd}"
+  }
+}
