@@ -1,0 +1,25 @@
+
+
+*****Log into instance and become root*****
+sudo su 
+
+******Command set #1*****
+su splunk
+wget -O /tmp/splunk-6.53-x86_64.rpm <<url>>
+/opt/splunk/bin/splunk stop
+
+******Command set #2*****
+exit
+rpm -Uvh /tmp/splunk-6.53-x86_64.rpm
+
+ Optionally: Copy if any changes required in the config as per the documentation (do the below steps for all config changes required)
+	wget -O /opt/splunk/etc/system/local/limits.conf <<config uri path>>
+
+
+******Command set #3*****
+chown -R splunk:splunk /opt/splunk
+/bin/su - splunk -c '/opt/splunk/bin/splunk start --accept-license --answer-yes --no-prompt'
+
+
+ps -aef | grep splunkd | grep 8089
+
