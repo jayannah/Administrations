@@ -1,0 +1,16 @@
+
+
+
+1. Append the below line to forwarder the port 80 requests to https on the file /etc/lighttpd/lighttpd.conf
+
+$SERVER["socket"] == ":80" {
+  $HTTP["host"] =~ ".*" {
+    url.redirect = (".*" => "https://kibana-e.cloud.capitalone.com/$1")
+  }
+}
+
+2. restart lighthttpd
+service lighttpd restart
+
+
+
