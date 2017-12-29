@@ -1,0 +1,190 @@
+Indexers:
+
+Indexer disk space:
+index=_introspection host=digitalidx*e sourcetype=splunk_disk_objects component=Partitions data.mount_point="/opt/splunk"  | eval free = if(isnotnull('data.available'), 'data.available', 'data.free')   | eval usage = round(('data.capacity' - free) / 1024, 2)    | eval capacity = round('data.capacity'/1024, 2)        | stats latest(capacity) as capacity latest(usage) as usage by host | eval PerdDiskUsage=usage/capacity*100 | sort -PerdDiskUsage
+
+To get list of index names quickly:
+| eventcount summarize=false index=* index=_* | dedup index | fields index
+
+To Get all indexname & their GUID
+| rest /services/cluster/master/peers |table label id 
+
+To force the hot bucket to Roll – follow anyone
+•	./bin/splunk _internal call /data/indexes/YOUR_INDEX_HERE/roll-hot-buckets -auth admin:password 
+•	curl -k -X POST  -u admin:changeme https://INDEXER:MGMT_PORT/services/data/indexes/YOUR_INDEX_HERE/roll-hot-buckets 
+•	rolling restart of indexers
+
+Rolling buckets manually from hot to warm
+To roll the buckets of an index manually from hot to warm, use the following CLI command, replacing <index_name> with the name of the index you want to roll:
+splunk _internal call /data/indexes/<index_name>/roll-hot-buckets –auth <admin_username>:<admin_password>
+
+
+Index management REST API calls:
+http://docs.splunk.com/Documentation/Splunk/6.3.2/RESTREF/RESTintrospect#data.2Findexes.2F.7Bname.7D    https://<host>:<mPort>/services/data/indexes/{name}  for DELETE, GET, POST
+http://docs.splunk.com/Documentation/Splunk/6.3.2/RESTREF/RESTintrospect#data.2Findexes    https://<host>:<mPort>/services/data/indexes  for GET, POST
+
+http://docs.splunk.com/Documentation/Splunk/6.3.2/RESTREF/RESTintrospectExamples
+
+
+Identify index rolling buckets
+| rest /services/data/indexes |search splunk_server!=*shc* AND maxTime=20* | table  title splunk_server currentDBSizeMB frozenTimePeriodInSecs maxTime minTime totalEventCount
+index=_internal host=ksplidx1c sourcetype=splunkd  component=BucketMover digwallet "AsyncFreezer freeze succeeded" "*db/db_*"  | head 100
+
+
+
+Search Head Cluster:
+
+SHCluster Stops working - SHPMaster - Search not executed: The maximum number of historical concurrent system-wide searches has been reached.
+SHPMaster - Search not executed: The maximum number of historical concurrent system-wide searches has been reached.
+This issue fixed in 6.3.3 (Bug ID SPL-109514)
+
+index=_internal sourcetype=splunkd  component=SHPMaster "Search not executed: Your maximum number of concurrent searches has been reached" | rex "user\=(?<user>.+)\.\s+for search:\s(?<search_user>[^;]+);(?<search_context>[^;]+);(?<search_name>.+)" 
+ | fields _time usage quota user search_*  
+ | stats  count by user search_name 
+ | where count>40 
+ | stats values(search_name) as affected_searches by user
+
+Temporary workaround : Restart the SH cluster 
+https://answers.splunk.com/answers/329518/why-do-scheduled-searches-randomly-stop-running-in.html 
+
+
+
+
+
+License usage:
+From license manager logs – for given index name by source type
+index=_internal source=*license_usage.log type="Usage" earliest=-10d@d latest=@d idx=eapi_cloud_system |  timechart span=1d sum(b) AS volumeB by st fixedrange=false  | fields - _timediff  | foreach * [eval <<FIELD>>=round('<<FIELD>>'/1024/1024/1024, 3)] | addtotals
+
+For total usage by index name
+index=_internal source=*license_usage.log type="Usage" earliest=-10d@d latest=@d |  timechart span=1d sum(b) AS volumeB by idx fixedrange=false  | fields - _timediff  | foreach * [eval <<FIELD>>=round('<<FIELD>>'/1024/1024/1024, 3)] | addtotals
+
+
+OS Level:
+
+Transparent huge page Setup
+[hdm789@digitalshc3ae ~]$ cat /sys/kernel/mm/redhat_transparent_hugepage/enabled
+always madvise [never]
+[hdm789@digitalshc3ae ~]$ cat /sys/kernel/mm/redhat_transparent_hugepage/defrag
+always madvise [never] 
+ 
+
+
+
+USERS and USER JOBs
+
+Find all user list in Splunk
+| rest /servicesNS/-/-/authentication/users | search type=LDAP splunk_server=vsplshd01c |fields title realname email roles|rename title as Userid realname as Name,email as Emailid|table Userid ,Name,Emailid 
+
+
+Find the UserIds running searches on particular index name:
+index=_audit action=search splunk_server= search=* user=* eapi_audit  (NOT eapi_audit_cloud)  | rex field=search "index\s*=\s*\"*(?<indexname>[^\s\"]+)" | stats count by indexname, user
+
+Splunk REST API command:
+curl -i -k -u '<eid>:<password>' 'https://digitalvsh1aqa.kdc.capitalone.com:8089/services/authentication/users'
+
+
+
+Troubleshooting Search Activities:
+index=_audit (host=vsplshd* OR host=ksplshd* OR host=ksplvsh*) action="search" info=*  user!="splunk-system-user" | table user, total_run_time, api_et, api_lt,result_count | eval api_et=strftime(api_et,"%m/%d/%Y %H:%M:%S:%3Q") | eval api_lt=strftime(api_lt,"%m/%d/%Y %H:%M:%S:%3Q")
+index=_internal (host=vsplshd* OR host=ksplvsh* OR host=ksplshd*) source=*metrics.log group="search_concurrency" | timechart span=1m sum(active_hist_searches) as concurrent_searches
+
+
+Splunk forwarder version & type
+index=_internal source="*metrics.lo*" group=tcpin_connections | dedup guid| eval sourceHost=if(isnull(hostname), sourceHost,hostname) | eval connectionType=case(fwdType=="uf","universal forwarder", fwdType=="lwf", "lightweight forwarder",fwdType=="full", "heavy forwarder", connectionType=="cooked" or connectionType=="cookedSSL","Splunk forwarder", connectionType=="raw" or connectionType=="rawSSL","legacy forwarder")| eval build=if(isnull(build),"n/a",build) | eval version=if(isnull(version),"pre 4.2",version) | eval guid=if(isnull(guid),sourceHost,guid) | eval os=if(isnull(os),"n/a",os)| eval arch=if(isnull(arch),"n/a",arch) | table sourceHost connectionType sourceIp sourceHost ssl ack build version os arch guid
+
+
+Handling the jobs:
+Finalize the running jobs
+		curl -k -u admin:pass https://localhost:8089/services/search/jobs/mysearch_02151949/control -d action=finalize 
+
+	Delete the Jobs
+		curl -k -u splunk_service_id:Busine55 --request DELETE " + "https://localhost:8089/services/search/jobs/" + job_id
+
+
+Exeucute Python command to delete
+		rest_cmd="curl -k -u splunk_service_id:Busine55 --request DELETE " + "https://localhost:8089/services/search/jobs/" + job_id;
+              rest_result=commands.getoutput(rest_cmd);
+
+http://docs.splunk.com/Documentation/Splunk/6.5.0/RESTTUT/RESTsearches 
+
+
+Concurrent searches:
+index=_internal source=*metrics.log group="search_concurrency" | timechart sum(active_hist_searches) as concurrent_searches by user 
+
+
+
+Splunk DB connect: 
+
+Search to find the DB connect inputs disabled:
+| rest splunk_server=local  /servicesNS/-/splunk_app_db_connect/data/inputs/mi_input | where disabled=1
+
+
+
+IF AGENT EXISTS and need to be upgraded from UF to HF  start with  step #1 ).
+
+1)            Login to the Linux server as root
+2)            Stop Splunk UF Agent Execute: /opt/splunkforwarder/bin/splunk stop
+3)            Copy fishbucket folder to temp Execute: cp -r /opt/splunkforwarder/var/lib/splunk/fishbucket  /tmp
+4)            Execute : chmod –R 777 /tmp/fishbucket
+5)                      Remove the contents of  /opt/splunkforwarder/ FS and remove the FS
+6)            Create a /opt/splunk mount with a dedicated 5 GB filesystem.
+7)            Copy the tar ball for Heavy forwarder Agent to /tmp ( tar file location on KL :)
+       Tar file location : https://knowledgelink.kdc.capitalone.com/kl/livelink.exe?func=ll&objId=1176469542&objAction=browse&viewType=1
+8)            Install Splunk Execute : tar -zxvf /tmp/<new forwarder file>  -C /opt/
+9)            Start splunk agent Execute : /opt/splunk/bin/splunk start --accept-license
+10)          Stop splunk agent Execute : /opt/splunk/bin/splunk stop
+11)          Copy the backup of fishbucket of universal forwarder : Execute: cp –r /tmp/fishbucket /opt/splunk/var/lib/splunk/.( this step only if upgrading. ignore if it is a new install)
+12)          Start splunk agent Execute : /opt/splunk/bin/splunk start
+13)          Disable Splunk Web Execute : /opt/splunk/bin/splunk disable webserver
+a.            Userid is admin
+b.            Password is changeme
+14)          Disable Splunk local index Execute: /opt/splunk/bin/splunk disable local-index
+15)          Set forwarder license Execute : /opt/splunk/bin/splunk edit licenser-groups Forwarder -is_active 1
+16)          Set deploy poll Execute : /opt/splunk/bin/splunk set deploy-poll kspldpy2a.kdc.capitalone.com:8089
+17)          Re-Start splunk agent Execute : /opt/splunk/bin/splunk restart
+18)          Delete /opt/splunkforwarder after confirming data ingestion
+19)          Include auto restart /stop and start of the splunk agent in boot start script
+                  /opt/splunk/bin/splunk enable boot-start -user root
+
+
+
+Updating expired Certificates:
+Since the splunk forwarder is pre6.2 ( the agent you have 6.1.2), the Splunk default certificates are expired.  So we need recreate the certificate or upgrade the splunk agent.
+
+The steps for recreating the certificates are below. Please do on pull1a and lets try.
+
+1) Stop Splunk
+2) Back up (note permissions/ownership, very important!!) and then remove:
+·         ./etc/auth/ca.pem
+·         ./etc/auth/cacert.pem
+·         ./etc/auth/server.pem
+3) Copy over the new versions of the following from a freshly unpacked 6.3 or later instance:  (these are ATTACHED TO THIS EMAIL)
+·         ./etc/auth/ca.pem
+·         ./etc/auth/cacert.pem
+·         Do not copy over server.pem
+4) Confirm permissions and ownership of 3).
+5) Restart Splunk.
+A new server.pem is generated.   You’re done.
+
+
+
+TLS update:
+
+[root@abcd~]# cat /opt/splunk/etc/system/local/server.conf
+[general]
+serverName = pull1a
+
+[sslConfig]
+sslKeysfilePassword = erwe34554test
+sslVersions = tls1.1, tls1.2
+#
+
+
+Bad Cop Search to identify the searches running by users:
+`audit_searchlocal` | `audit_rexsearch` | convert num(total_run_time) | eval user = if(user="n/a", null(), user) | stats min(_time) as _time first(user) as user max(total_run_time) as total_run_time first(search) as search first(apiStartTime) as "Earliest time" first(apiEndTime) as "Latest time" by search_id | search search_id=* search=search* OR search=rtsearch* search!=*_internal* search!=*_audit* | sort - total_run_time | fields - search_id
+
+  Macro defintion for above command: 
+  audit_searchlocal ==>	`audit_searchlocal("search_id!=rt_*")`
+  audit_searchlocal(1) ==>   search index=_audit action=search (id=* OR search_id=*) | eval search_id = if(isnull(search_id), id, search_id) | replace '*' with * in search_id | search $filter$
+  audit_rexsearch	==>  rex "search='(?<search>.*?)', autojoin"
+
