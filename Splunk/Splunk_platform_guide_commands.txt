@@ -80,7 +80,7 @@ Find the UserIds running searches on particular index name:
 index=_audit action=search splunk_server= search=* user=* eapi_audit  (NOT eapi_audit_cloud)  | rex field=search "index\s*=\s*\"*(?<indexname>[^\s\"]+)" | stats count by indexname, user
 
 Splunk REST API command:
-curl -i -k -u '<eid>:<password>' 'https://digitalvsh1aqa.kdc.capitalone.com:8089/services/authentication/users'
+curl -i -k -u '<eid>:<password>' 'https://digitalvsh1aqa.domain.com:8089/services/authentication/users'
 
 
 
@@ -129,7 +129,7 @@ IF AGENT EXISTS and need to be upgraded from UF to HF  start with  step #1 ).
 5)                      Remove the contents of  /opt/splunkforwarder/ FS and remove the FS
 6)            Create a /opt/splunk mount with a dedicated 5 GB filesystem.
 7)            Copy the tar ball for Heavy forwarder Agent to /tmp ( tar file location on KL :)
-       Tar file location : https://knowledgelink.kdc.capitalone.com/kl/livelink.exe?func=ll&objId=1176469542&objAction=browse&viewType=1
+       Tar file location : urlll
 8)            Install Splunk Execute : tar -zxvf /tmp/<new forwarder file>  -C /opt/
 9)            Start splunk agent Execute : /opt/splunk/bin/splunk start --accept-license
 10)          Stop splunk agent Execute : /opt/splunk/bin/splunk stop
@@ -140,7 +140,7 @@ a.            Userid is admin
 b.            Password is changeme
 14)          Disable Splunk local index Execute: /opt/splunk/bin/splunk disable local-index
 15)          Set forwarder license Execute : /opt/splunk/bin/splunk edit licenser-groups Forwarder -is_active 1
-16)          Set deploy poll Execute : /opt/splunk/bin/splunk set deploy-poll kspldpy2a.kdc.capitalone.com:8089
+16)          Set deploy poll Execute : /opt/splunk/bin/splunk set deploy-poll kspldpy2a.domain.com:8089
 17)          Re-Start splunk agent Execute : /opt/splunk/bin/splunk restart
 18)          Delete /opt/splunkforwarder after confirming data ingestion
 19)          Include auto restart /stop and start of the splunk agent in boot start script
