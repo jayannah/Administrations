@@ -1,0 +1,68 @@
+#!/bin/bash
+# Created Date : 12/26/2017
+# Created By:  Jayanna Hallur
+# Purpose: To port all the Templates in the Elastic Search Cluster to Another Elastic Search Cluster. This will be very useful during blue-green cluster migration/rehydration.
+# Team:  Enterprise Monitoring Team
+#
+
+portElasticTemplates() {
+  DATE=`date '+%Y%m%d%H%M%S'`
+  dirName="/tmp/es_template_porting_$DATE"
+  mkdir $dirName
+  cd $dirName
+  echo "Working dir for this job : " $dirName
+  srcCluster="10.xx.xx.xx:9200"
+  dstCluser="10.yy.yy.yy:9200"
+  srcElastciTemplatesFileName="srcElasticTemplates.json"  # All the templates from source cluster will be downloaded on this file name
+  dstElasticTemplatesFileName="dstElasticTemplates.json"  # All the templates from destination cluster will be downloaded on this file name
+  srcTemplates="srcTemplates.txt"  # For storing user template names
+  tName=""
+
+  echo "Getting the templates from the cluster " $srcCluster
+
+  curl -u elastic:changeme -XGET 'http://'$srcCluster'/_template?pretty'  > $srcElastciTemplatesFileName
+
+  #Just make sure that this is not an empty/dummy file and it does contain mapping text.
+
+  cat $srcElastciTemplatesFileName | grep 'mappings'
+  if [ $? -eq 0 ]; then
+     echo "SUCCESS: Getting Templates from Cluster - " $srcCluster
+  else
+    echo "ERROR: Getting Templates from Cluster - " $srcCluster
+    return 1
+  fi
+
+  ## Get the template names from the template file downloaded from the source cluster
+  
+  grep "^  \"" $srcElastciTemplatesFileName | grep -v "\"\." | sed "s/\"//g" | awk '{print $1}' | awk -F: '{print $1}' > $srcTemplates
+  
+  for template in `cat $srcTemplates`
+  	do
+  	  echo "Starting processing Template: " $template
+  	  tName=.$template
+  	  echo "Name for JQ command : " $tName
+  	  cat $srcElastciTemplatesFileName | jq $tName > $template
+  	  
+  	  if [ -s $template ]; then
+   			echo "Template has Data...  Apply the template : " $template
+  		  curl -u elastic:changeme -XPUT http://$dstCluser/_template/$template?pretty -H 'Content-Type: application/json' -d @$template > '$template'_putRequest.log
+  		else
+   	  	echo "The template extraction failed for " $template
+  	  	echo $template >> ERROR_FAILED_TEMPLATES.log
+  	  fi
+      echo "-----------\n"
+  	done
+}
+
+echo "=================================================================================================================="
+echo "Start - Executing Template Porting Script "
+mainPath=`pwd`
+#Iterate through each line in the file and call the method
+portElasticTemplates
+
+#go back to the original dir
+cd $mainPath
+
+echo ================================== THE END ========================================
+
+
