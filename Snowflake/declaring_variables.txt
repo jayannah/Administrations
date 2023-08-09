@@ -1,0 +1,14 @@
+-- Declare variables
+DECLARE @env STRING;
+DECLARE @db_name STRING;
+
+-- Set the variables to the environment
+SET @env = 'DEV'; -- This can be 'DEV', 'UAT', 'PROD', etc.- This could be resolved based by environment
+SET @db_name = @env || '_DATABASE_NAME'; -- Construct the database name based on the environment
+
+-- Construct the fully qualified table name
+DECLARE @full_table_name STRING;
+SET @full_table_name = @db_name || '.SAMPLE_SCHEMA.TABLE_EXAMPLE';
+
+-- Use the variable in a query
+SELECT * FROM IDENTIFIER($@full_table_name) LIMIT 10;
