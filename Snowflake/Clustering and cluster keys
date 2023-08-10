@@ -1,0 +1,5 @@
+Cluster keys is better if the table gets updates/inserted on existing records.. so that the partitions are created according to the clustering keys. E.g.. if UW team always required data based on group numbers then its better to create tables with grp_nbr as cluster key so that when UW application queries the data, it will read/parse only minimum number of micro partitions that will improve the speed of the query aswell as less credits are used (cost saving).
+
+If the target table is month time load, then sorting the table on grp_nbr col is sufficients, and not cluster keys. 
+
+Setting clustering keys cost credits while data is written to the table, but saved during query.   If data is loaded kill & fill or full dump approach, sorting will achieve the same query performance as cluster keys, also save credit while writing the data.  Go for cluster keys only if the table is updated/inserted with records frequently to ensure partitions are adjusted .
