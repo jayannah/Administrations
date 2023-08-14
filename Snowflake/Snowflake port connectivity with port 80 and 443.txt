@@ -1,0 +1,37 @@
+
+Following is the verbiage that you need to provide in order to justify opening port 80 (http):
+Justification to have port 80 opened:
+Port 80 is used for OCSP communication from snowflake client to snowflake server in this case. Following is more information on OCSP and what happens
+
+in terms communication on port 80.
+
+General Information on OCSP:
+
+The Online Certificate Status Protocol (OCSP) is an Internet protocol used for obtaining the revocation status of an X.509 digital certificate to 
+
+make sure client server communication is valid and trusted.
+
+How does Snowflake uses port 80 communication:
+
+Snowflake uses Online Certificate Status Protocol (OCSP) to provide maximum security to determine whether a certificate is revoked when 
+
+Snowflake clients attempt to connect to an endpoint through HTTPS.
+
+Snowflake uses OCSP to evaluate each certificate in the chain of trust up to the intermediate certificate the root certificate authority (CA) issues. 
+
+Ensuring that each certificate is not revoked helps Snowflake to establish secure connections with trusted actors during the identity verification 
+
+process.
+
+Important Note:
+
+There is no authentication traffic traversing through port 80. 
+
+For more information please refer to following KB Article:
+https://community.snowflake.com/s/article/Why-do-OCSP-use-Port-80-and-not-Port-443
+
+ 
+
+Snowflake Community
+
+Join our community of data professionals to learn, connect, share and innovate together
