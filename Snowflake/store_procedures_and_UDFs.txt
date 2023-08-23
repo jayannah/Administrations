@@ -1,0 +1,4 @@
+
+Snowflake process to run the Scala code without the help of EMR https://medium.com/snowflake/introducing-maven-and-gradle-plugins-for-snowflake-438a77e1ff82
+You can use these plugins to deploy directly from your local machine or from a CI pipeline, such as GitHub Actions. Under the hood these plugins will create a stage if it does not already exist, upload your compiled JAR and dependencies, and then run the CREATE ... DDL for each UDF and stored procedure to create them on Snowflake.
+
