@@ -1,0 +1,271 @@
+
+
+https://interworks.com/blog/2022/08/16/a-definitive-guide-to-python-stored-procedures-in-the-snowflake-ui/
+
+
+Simple store procedure with one function....  see below for SP with multiple functions and calling each other
+CREATE OR REPLACE PROCEDURE multiply_two_integers_together(
+      INPUT_INT_1 int
+    , INPUT_INT_2 int
+  )
+  returns int not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python')
+  handler = 'multiply_together_py'
+as
+$$
+def multiply_together_py(
+    snowpark_session
+  , input_int_py_1: int
+  , input_int_py_2: int
+  ):
+  return input_int_py_1*input_int_py_2
+$$
+;
+
+
+Store procedure with multiple functions and calling other functions
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+E.g: Multiply All Integers in an Input Array by Another Integer 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+CREATE OR REPLACE PROCEDURE multiply_all_integers_in_array(
+      INPUT_ARRAY array
+    , INPUT_INT int
+  )
+  returns array not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python')
+  handler = 'multiply_integers_in_array_py'
+as
+$$
+# First define a function which multiplies two integers together
+def multiply_together_py(
+    a: int
+  , b: int
+  ):
+  return a*b
+# Define main function which maps multiplication function
+# to all members of the input array
+def multiply_integers_in_array_py(
+    snowpark_session
+  , input_list_py: list
+  , input_int_py: int
+  ):
+  # Use list comprehension to apply the function multiply_together_py
+  # to each member of the input list
+  return [multiply_together_py(i, input_int_py) for i in input_list_py]
+$$
+;
+
+
+
+
+
+
+Interacting with Snowflake within a Stored Procedure:
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Retrieve Current User and Date:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+CREATE OR REPLACE PROCEDURE retrieve_current_user_and_date()
+  returns string not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python')
+  handler = 'retrieve_current_user_and_date_py'
+as
+$$
+def retrieve_current_user_and_date_py(snowpark_session):
+
+  ## Execute the query into a Snowflake dataframe
+  results_df = snowpark_session.sql('SELECT CURRENT_USER, CURRENT_DATE')
+  return results_df.collect()
+$$
+;
+
+
+
+
+
+
+
+
+Create and Modify a Table in Snowflake Using the .sql() Method:
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CREATE OR REPLACE PROCEDURE create_and_modify_table_via_sql_method()
+  returns string not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python')
+  handler = 'create_and_modify_table_via_sql_method_py'
+as
+$$
+def create_and_modify_table_via_sql_method_py(snowpark_session):
+
+  ## Execute the query to create the table
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql('''
+    CREATE OR REPLACE TABLE MY_TEMP_TABLE (
+        RECORD_ID INT IDENTITY
+      , USER_NAME STRING
+    ) 
+  ''').collect()
+  
+  ## Execute the query to drop the RECORD_ID field
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql('''
+    ALTER TABLE MY_TEMP_TABLE
+    DROP COLUMN RECORD_ID
+  ''').collect()
+  
+  ## Execute the query to add the TIMESTAMP field
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql('''
+    ALTER TABLE MY_TEMP_TABLE
+    ADD COLUMN TIMESTAMP STRING
+  ''').collect()
+  
+  ## Execute the query to insert a new record
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql('''
+    INSERT INTO MY_TEMP_TABLE (USER_NAME, TIMESTAMP)
+    SELECT CURRENT_USER, CURRENT_TIMESTAMP
+  ''').collect()
+
+  ## Execute a star select query into a Snowflake dataframe
+  results = snowpark_session.sql('SELECT * FROM MY_TEMP_TABLE').collect()
+
+  ## Execute the query to drop the table again
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql('''
+    DROP TABLE IF EXISTS MY_TEMP_TABLE
+  ''').collect()
+
+  return results
+$$
+;
+
+
+
+
+
+
+Create and Modify a Table with a Variable Input Name in Snowflake Using the .sql() Method
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE OR REPLACE PROCEDURE using_variables_create_and_modify_table_via_sql_method(INPUT_TABLE_NAME STRING)
+  returns string not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python')
+  handler = 'using_variables_create_and_modify_table_via_sql_method_py'
+as
+$$
+def using_variables_create_and_modify_table_via_sql_method_py(snowpark_session, table_name: str):
+
+  # This procedure uses standard python 
+  # string manipulation to leverage variables
+  # within strings. For example, we can
+  # insert table_name into a string as follows:
+  example_string = f'My table name is {table_name}'
+
+  ## Execute the query to create the table
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql(f'''
+    CREATE OR REPLACE TABLE {table_name} (
+        RECORD_ID INT IDENTITY
+      , USER_NAME STRING
+    ) 
+  ''').collect()
+  
+  ## Execute the query to drop the RECORD_ID field
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql(f'''
+    ALTER TABLE {table_name}
+    DROP COLUMN RECORD_ID
+  ''').collect()
+  
+  ## Execute the query to add the TIMESTAMP field
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql(f'''
+    ALTER TABLE {table_name}
+    ADD COLUMN TIMESTAMP STRING
+  ''').collect()
+  
+  ## Execute the query to insert a new record
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql(f'''
+    INSERT INTO {table_name} (USER_NAME, TIMESTAMP)
+    SELECT CURRENT_USER, CURRENT_TIMESTAMP
+  ''').collect()
+
+  ## Execute a star select query into a Snowflake dataframe
+  results = snowpark_session.sql(f'SELECT * FROM {table_name}').collect()
+
+  ## Execute the query to drop the table again
+  ## using ''' for a multi-line string input
+  ## and .collect() to ensure execution on Snowflake
+  snowpark_session.sql(f'''
+    DROP TABLE IF EXISTS {table_name}
+  ''').collect()
+
+  return results
+$$
+;
+
+
+
+
+
+
+Execute a Metadata Command (SHOW/LIST/DESCRIBE) into a Table
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE OR REPLACE PROCEDURE basic_metadata_command_to_table(
+      INPUT_METADATA_COMMAND STRING
+    , INPUT_DESTINATION_TABLE STRING
+  )
+  returns string not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python')
+  handler = 'basic_metadata_command_to_table_py'
+  execute as caller
+as
+$$
+def basic_metadata_command_to_table_py(snowpark_session, metadata_command: str, destination_table: str):
+
+  ## Read the command into a Snowflake dataframe
+  results_df = snowpark_session.sql(metadata_command)
+
+  ## Write the results of the dataframe into a target table
+  results_df.write.mode("overwrite").save_as_table(destination_table)
+    
+  return f"Succeeded: Results inserted into table {destination_table}"
+$$
+;
+
+
+
+
+
+
+Importing Additional Libraries from Anaconda
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
