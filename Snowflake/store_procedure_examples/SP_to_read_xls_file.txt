@@ -1,0 +1,79 @@
+Import an External Excel xlsx File
+This example reads an Excel xlsx file into a pandas dataframe, then writes the dataframe into a destination table in Snowflake.
+
+The file we will be leveraging is a very simple mapping file that looks like this:
+Item         Group
+Chocolate     food
+Coffee        drink
+Banana        food
+Orange Juice  drink
+Orange        food
+
+The file is called “Dummy Mapping File.xlsx” and I have uploaded it to the stage “STG_FILES_FOR_STORED_PROCEDURES.”
+
+Here is the code for the stored procedure itself:
+
+CREATE OR REPLACE PROCEDURE leverage_external_mapping_file(INPUT_DESTINATION_TABLE STRING)
+  returns string not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python', 'pandas', 'openpyxl') -- openpyxl required for pandas to read xlsx
+  imports = ('@STG_FILES_FOR_STORED_PROCEDURES/Dummy Mapping File.xlsx')
+  handler = 'leverage_external_mapping_file_py'
+as
+$$
+
+# Import the required modules 
+import pandas
+import sys
+
+# Retrieve the Snowflake import directory
+IMPORT_DIRECTORY_NAME = "snowflake_import_directory"
+import_dir = sys._xoptions[IMPORT_DIRECTORY_NAME]
+
+# Define main function which leverages the mapping
+def leverage_external_mapping_file_py(snowpark_session, destination_table: str):
+
+  # Read mapping table using Pandas
+  mapping_df_pd = pandas.read_excel(import_dir + 'Dummy Mapping File.xlsx', skiprows=5, usecols="C:D")
+
+  # Convert the filtered Pandas dataframe into a Snowflake dataframe
+  mapping_df_sf = snowpark_session.create_dataframe(mapping_df_pd)
+  
+  # Write the results of the dataframe into a target table
+  mapping_df_sf.write.mode("overwrite").save_as_table(destination_table)
+    
+  return f"Succeeded: Results inserted into table {destination_table}"
+
+$$
+;
+
+
+
+
+
+
+
+
+The unique differences for this example are:
+
+Row 6 includes a line to import the file from a stage. This is a critical component for our Python function to be able to access the file during the pandas.from_excel() function.
+Mirroring this is the code on lines 16 and 17 that leverages the sys library to access the location where Snowflake stores files that have been imported into the stored procedure.
+The rest of the code in this script is specific Python code to download the Excel file into a Pandas dataframe, convert it to a Snowflake dataframe and write it to the destination table.
+
+Again, if we execute this code in a Snowflake worksheet, we can then call the stored procedure, in the same way that we would any other stored procedure, to see the result.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
