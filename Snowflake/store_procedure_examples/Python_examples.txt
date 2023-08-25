@@ -265,7 +265,73 @@ $$
 
 Importing Additional Libraries from Anaconda
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ven though our examples so far have all been fairly basic, we can already start to see how powerful Python stored procedures could be. Not only are we able to receive inputs and use them to produce outputs, we can also define our own functionality within the Python script and perform more complex logical steps when executing our function, storing the results in tables in Snowflake.
 
+What about if we wish to use Python libraries that are not part of the standard inbuilt set? For example, what if we wish to leverage Pandas, PyTorch or a wide range of other popular libraries? The good news here is that Snowflake have partnered with Anaconda, and you already have everything you need to leverage any of the libraries listed in Anaconda’s Snowflake channel.
+
+If you wish to leverage any libraries that are not included in Anaconda’s Snowflake channel, including any libraries you have developed in-house, then you will need to import them separately. This will be discussed in the next section.
+
+Accepting the Terms of Usage to Enable Third-Party Packages
+To leverage third party packages from Anaconda within Snowflake, an ORGADMIN must first accept the third-party terms of usage. I walk through the process now; however, more details can be found here for those who desire it. This step must only be completed once for the entire organisation.
+
+Using the ORGADMIN role in the SnowSight UI, navigate to Admin > Billing to accept the third-party terms of usage
+
+Examples Using Supported Third-Party Libraries
+Now that we have enabled third-party libraries for our organisation, we can show some more interesting examples.
+Manipulate Data in Snowflake Using Pandas
+This stored procedure demonstrates using Pandas to manipulate data from a table. Specifically, we will use Pandas on the contents of a table to make some minor modifications (a filter) before writing the result to another table.
+
+Let’s see the code:
+CREATE OR REPLACE PROCEDURE manipulate_data_with_pandas(
+      INPUT_ORIGIN_TABLE STRING
+    , INPUT_DESTINATION_TABLE STRING
+    , INPUT_FILTER_FIELD STRING
+    , INPUT_FILTER_VALUE STRING
+  )
+  returns string not null
+  language python
+  runtime_version = '3.8'
+  packages = ('snowflake-snowpark-python', 'pandas')
+  handler = 'manipulate_data_with_pandas_py'
+as
+$$
+
+import pandas
+
+def manipulate_data_with_pandas_py(snowpark_session, origin_table: str, destination_table: str, filter_field: str, filter_value: str):
+
+  # Read the origin table into a Snowflake dataframe
+  results_df_sf = snowpark_session.table(origin_table)
+
+  # Convert the Snowflake dataframe into a Pandas dataframe
+  results_df_pd = results_df_sf.to_pandas()
+
+  # Filter the Pandas dataframe to databases where the field matches the value
+  results_df_pd_filtered = results_df_pd[results_df_pd[filter_field] == filter_value]
+
+  # Convert the filtered Pandas dataframe into a Snowflake dataframe
+  results_df_sf_filtered = snowpark_session.create_dataframe(results_df_pd_filtered)
+  
+  # Write the results of the dataframe into a target table
+  results_df_sf_filtered.write.mode("overwrite").save_as_table(destination_table)
+    
+  return f"Succeeded: Results inserted into table {destination_table}"
+$$
+;
+
+The core difference between this stored procedure and our previous examples are:
+
+On row 10, we have now included the pandas library in the “packages” clause.
+On row 15, we use standard Python functionality to import the required tools from the pandas library, which are then leveraged in our Python function.
+On row 20, we use the .table() method to read the contents of a Snowflake table into a Snowflake dataframe.
+On row 23, we convert a Snowflake dataframe into a Pandas dataframe.
+On row 29, we convert a Pandas dataframe into a Snowflake dataframe.
+
+It is important to note the following according to Snowflake’s own documentation, which prevents us from directly sending results from metadata commands such as SHOW into Pandas:
+
+If you use Session.sql() with this method, the input query of Session.sql() can only be a SELECT statement.
+
+Again, if we execute this code in a Snowflake worksheet, we can then call the stored procedure, in the same way that we would any other stored procedure, to see the result.
 
 
 
